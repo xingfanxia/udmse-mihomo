@@ -8,8 +8,8 @@ SOURCE_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 VERSION=v1.19.31
 SHA256=9e0f11afbf38426b8bd88fdc594678f8161c57eccb4e1b77acb12b493904f1d4
 OWNER=udmse-mihomo-v2
-UNITS=(mihomo.service mihomo-watchdog.service mihomo-watchdog.timer)
-FILES=(config.yaml routing.env.example install-config.py mihomo-routing.sh 20-mihomo.sh mihomo-watchdog.sh uninstall.sh "${UNITS[@]}")
+UNITS=(mihomo.service mihomo-watchdog.service mihomo-watchdog.timer mihomo-admin.service)
+FILES=(admin-server.py admin/index.html admin/app.js admin/style.css admin/favicon.svg config.yaml routing.env.example install-config.py mihomo-routing.sh 20-mihomo.sh mihomo-watchdog.sh uninstall.sh "${UNITS[@]}")
 SUBSCRIPTION_FILE=''
 ROUTING_FILE=''
 fail() { printf '%s\n' "$*" >&2; exit 1; }
@@ -65,9 +65,10 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-mkdir "$STAGE/providers" "$STAGE/rules"
+mkdir "$STAGE/providers" "$STAGE/rules" "$STAGE/admin"
 for file in "${FILES[@]}"; do cp -- "$SOURCE_DIR/$file" "$STAGE/$file"; done
-chmod 700 "$STAGE" "$STAGE/providers" "$STAGE/rules"
+chmod 700 "$STAGE" "$STAGE/providers" "$STAGE/rules" "$STAGE/admin"
+chmod 600 "$STAGE/admin/"*
 chmod 600 "$STAGE"/*.*
 chmod 700 "$STAGE"/*.sh
 if [[ -n $SUBSCRIPTION_FILE ]]; then
@@ -102,6 +103,7 @@ if ! "$STAGE/mihomo" -t -d "$STAGE" -f "$STAGE/config.yaml" > "$STAGE/.config-ch
     fail 'Mihomo configuration check failed; staged files removed (diagnostics suppressed to protect subscription secrets).'
 fi
 rm -- "$STAGE/.config-check.log"
+python3 -c 'import secrets,sys; from pathlib import Path; p=Path(sys.argv[1]); p.write_text(secrets.token_hex(32)+"\n"); p.chmod(0o600)' "$STAGE/admin-token"
 printf '%s\n' "$OWNER" > "$STAGE/.managed-by"
 mv -- "$STAGE" "$MIHOMO_DIR"
 STAGE=''
@@ -115,3 +117,4 @@ COMPLETE=1
 printf '%s\n' 'Prepared /data/mihomo. Nothing is started or enabled.'
 printf '%s\n' 'Set the explicit source scope in /data/mihomo/routing.env, then run: /data/mihomo/20-mihomo.sh start'
 printf '%s\n' 'API: 127.0.0.1:9090; its generated secret is private in config.yaml. No boot hook was installed.'
+printf '%s\n' 'Admin page: start mihomo-admin.service, then SSH-forward localhost:9088. Its separate login token is in /data/mihomo/admin-token.'

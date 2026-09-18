@@ -8,7 +8,8 @@ import copy,http.server,json,os,socket,struct,subprocess,sys,tempfile,threading,
 from pathlib import Path
 if Path('/proc/self/ns/net').stat().st_ino==Path('/proc/1/ns/net').stat().st_ino:
  raise SystemExit('Refusing to start test listeners in the host network namespace')
-binary,template=sys.argv[1:]
+binary,template=sys.argv[1:3]
+admin_module=Path(sys.argv[3]) if len(sys.argv)>3 else None
 base=json.loads(Path(template).read_text())
 dns_ip=base['dns']['listen'].rsplit(':',1)[0]
 subprocess.run(['ip','addr','add',dns_ip+'/32','dev','lo'],check=True)
@@ -68,6 +69,17 @@ for enable_direct in (True,False):
      assert '127.0.0.1:7893' in udp_ports and dns_ip+':1053' in udp_ports
      print('PASS actual TCP/UDP listener addresses match the guarded runtime contract')
      print('PASS empty-cache subscription bootstrapped through dedicated direct DNS')
+     if admin_module:
+      import importlib.util
+      spec=importlib.util.spec_from_file_location('admin_server',admin_module);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+      (Path(tmp)/'config.yaml').write_text('mode: rule\nsecret: '+json.dumps(cfg['secret'])+'\n')
+      controller=module.Controller(root=Path(tmp),state=Path(tmp)/'state',lifecycle_lock=Path(tmp)/'lock')
+      controller.apply_mode('global')
+      assert controller.api('GET','/configs')['mode']=='global'
+      assert controller.api('GET','/proxies/GLOBAL')['now']=='PROXY'
+      controller.apply_mode('rule')
+      assert controller.api('GET','/configs')['mode']=='rule'
+      print('PASS admin global mode selects PROXY and returns to smart mode on the real engine')
     else:
      assert group['now']=='REJECT',group
      assert counts['http']==before['http']

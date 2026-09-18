@@ -76,8 +76,11 @@ class InstallTest(unittest.TestCase):
         (self.source / "install.sh").write_text(script)
         for name in ("config.yaml", "routing.env.example", "install-config.py", "uninstall.sh"):
             shutil.copyfile(REPO / name, self.source / name)
-        for name in ("mihomo-routing.sh", "20-mihomo.sh", "mihomo-watchdog.sh", "mihomo.service", "mihomo-watchdog.service", "mihomo-watchdog.timer"):
+        for name in ("mihomo-routing.sh", "20-mihomo.sh", "mihomo-watchdog.sh", "mihomo.service", "mihomo-watchdog.service", "mihomo-watchdog.timer", "mihomo-admin.service", "admin-server.py"):
             (self.source / name).write_text("# fixture\n")
+        (self.source / "admin").mkdir()
+        for name in ("index.html", "app.js", "style.css", "favicon.svg"):
+            (self.source / "admin" / name).write_text("fixture")
         self.mock("sha256sum", 'exec "$CHECKSUM_COMMAND" "$@"')
         self.mock("id", "echo 0")
         self.mock("uname", 'if [[ $1 == -s ]]; then echo Linux; else echo aarch64; fi')
@@ -189,23 +192,25 @@ if [[ ${CORRUPT_DOWNLOAD:-0} == 1 ]]; then printf broken >> "$output"; fi''')
         result = self.run_uninstall()
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.log.exists())
-        self.assertEqual(len(list(self.units.iterdir())), 3)
+        self.assertEqual(len(list(self.units.iterdir())), 4)
 
     def test_uninstall_detach_failure_keeps_listener_and_files(self):
         self.prepare_uninstall()
         result = self.run_uninstall(CLEANUP_FAILURE="1")
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn("stop mihomo.service", self.log.read_text())
-        self.assertEqual(len(list(self.units.iterdir())), 3)
+        self.assertEqual(len(list(self.units.iterdir())), 4)
 
     def test_success_prepares_only_with_private_permissions(self):
         result = self.run_install()
         self.assertEqual(result.returncode, 0, result.stderr)
         installed = self.data / "mihomo"
         self.assertEqual(installed.stat().st_mode & 0o777, 0o700)
-        for name in ("config.yaml", "routing.env", ".managed-by"):
+        for name in ("config.yaml", "routing.env", ".managed-by", "admin-token"):
             self.assertEqual((installed / name).stat().st_mode & 0o777, 0o600)
         self.assertIn('listen: "192.168.1.1:1053"', (installed / "config.yaml").read_text())
+        self.assertEqual(len((installed / "admin-token").read_text().strip()), 64)
+        self.assertTrue((installed / "admin" / "index.html").exists())
         self.assertEqual(self.log.read_text(), "daemon-reload\n")
         self.assertFalse((self.data / "on_boot.d").exists())
         self.assertFalse((installed / ".subscription").exists())

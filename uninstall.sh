@@ -7,7 +7,7 @@ MIHOMO_DIR=/data/mihomo
 UNIT_DIR=/etc/systemd/system
 STATE=/run/mihomo-routing
 OWNER=udmse-mihomo-v2
-UNITS=(mihomo.service mihomo-watchdog.service mihomo-watchdog.timer)
+UNITS=(mihomo.service mihomo-watchdog.service mihomo-watchdog.timer mihomo-admin.service)
 PURGE=0
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 case "${1:-}" in
@@ -53,6 +53,7 @@ stop_if_present() {
         systemctl stop "$1"
     fi
 }
+stop_if_present mihomo-admin.service
 stop_if_present mihomo-watchdog.timer
 stop_if_present mihomo-watchdog.service
 # The bootstrap rollback is transient and may already have expired.
@@ -61,7 +62,7 @@ if systemctl is-active --quiet mihomo-rollback.service; then systemctl stop miho
 "$MIHOMO_DIR/mihomo-routing.sh" detach
 stop_if_present mihomo.service
 "$MIHOMO_DIR/mihomo-routing.sh" cleanup
-for unit in mihomo.service mihomo-watchdog.timer; do
+for unit in mihomo.service mihomo-watchdog.timer mihomo-admin.service; do
     [[ ! -e $UNIT_DIR/$unit ]] || systemctl disable "$unit"
 done
 for unit in "${UNITS[@]}"; do rm -f -- "$UNIT_DIR/$unit"; done

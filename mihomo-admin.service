@@ -1,0 +1,15 @@
+[Unit]
+Description=Local UDM proxy control panel
+After=network.target
+
+[Service]
+Type=simple
+UMask=0077
+ExecStart=/usr/bin/python3 /data/mihomo/admin-server.py
+Restart=on-failure
+RestartSec=3
+MemoryMax=128M
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target

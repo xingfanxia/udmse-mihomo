@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>UDM 分流控制</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="UDM 分流控制首页"><span class="device-icon" aria-hidden="true"><i></i><b></b><b></b><b></b><b></b></span><span>UDM <strong>分流控制</strong></span></a>
+    <div class="connection"><span class="connection-dot"></span>本地安全连接</div>
+    <button id="logout" class="quiet" type="button" hidden>退出</button>
+  </header>
+  <main>
+    <section id="login" class="login-panel" aria-labelledby="login-title">
+      <div class="login-mark" aria-hidden="true">↳</div>
+      <h1 id="login-title">让流量各走其道。</h1>
+      <p>管理 UDM 上的代理开关和分流模式。<br>连接你的控制面板，查看当前网络状态。</p>
+      <form id="login-form">
+        <label for="token">管理口令</label>
+        <input id="token" name="token" type="password" autocomplete="off" spellcheck="false" required placeholder="输入安装时生成的管理口令">
+        <button id="login-button" class="primary" type="submit">连接控制面板</button>
+        <p id="login-error" class="error" role="alert" hidden></p>
+      </form>
+      <p class="privacy-note">口令只保留在当前页面，刷新或退出后需要重新输入。</p>
+    </section>
+    <div id="dashboard" hidden>
+      <div class="heading-row"><div><p class="subtitle">你的网络，你来决定。</p><h1>流量分流</h1></div><div id="state-badge" class="badge">正在读取状态</div></div>
+      <section class="control-panel" aria-labelledby="control-title">
+        <div class="power-row">
+          <div><h2 id="control-title">代理总开关</h2><p id="power-description">正在读取路由器状态…</p></div>
+          <button id="power-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="代理总开关" disabled><span></span></button>
+        </div>
+        <div class="mode-section"><h3 id="mode-title">上网模式</h3>
+          <div class="modes" role="group" aria-labelledby="mode-title">
+            <button class="mode" data-mode="rule" aria-pressed="false" type="button"><span class="mode-icon" aria-hidden="true">⑂</span><strong>智能分流</strong><span>国内直连，其他走代理</span><i aria-hidden="true"></i></button>
+            <button class="mode" data-mode="global" aria-pressed="false" type="button"><span class="mode-icon" aria-hidden="true">↗</span><strong>全部代理</strong><span>所选设备的上网流量走代理</span><i aria-hidden="true"></i></button>
+            <button class="mode" data-mode="direct" aria-pressed="false" type="button"><span class="mode-icon" aria-hidden="true">↔</span><strong>全部直连</strong><span>暂停代理，使用原来的网络</span><i aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="route-view" aria-label="当前流量路径">
+          <div class="route-source"><span class="route-device" aria-hidden="true">▰</span><span>所选设备</span></div>
+          <div class="route-line"></div><div class="route-router">UDM SE</div><div class="route-line"></div>
+          <div class="route-destinations"><div><span>国内网站</span><b id="route-china">直连</b></div><div><span>海外网站</span><b id="route-overseas">直连</b></div></div>
+        </div>
+        <div class="session-row"><div class="session-text"><span id="session-label">下次启用时自动恢复直连</span><strong id="remaining" hidden></strong></div><label class="duration-label" for="duration">试用时长 <select id="duration"><option value="15">15 分钟</option><option value="60" selected>1 小时</option><option value="240">4 小时</option></select></label></div>
+      </section>
+      <section class="details" aria-label="当前接管范围">
+        <div class="scope-detail"><span class="detail-label">接管范围</span><h2 id="scope-title">读取中</h2><p id="scope-description">—</p></div>
+        <div class="exit-detail"><span class="detail-label">代理出口</span><strong id="proxy-name">—</strong><p id="engine-description">—</p></div>
+      </section>
+      <p class="scope-note">总开关只控制这里显示的范围。内网和 Tailscale 连接保留原路径。</p>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <footer><span>状态来自路由器实时读取</span><span id="last-updated">尚未更新</span></footer>
+    </div>
+  </main>
+</body>
+</html>
