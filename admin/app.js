@@ -71,6 +71,7 @@ async function refresh() {
   catch (error) { if (token) notice(error.message, true, 'poll'); }
 }
 function logout() {
+  stopTelemetry();
   clearInterval(polling); polling = null; token = ''; state = null;
   $('token').value = '';
   $('dashboard').hidden = true; $('login').hidden = false; $('logout').hidden = true;
@@ -93,7 +94,7 @@ $('login-form').addEventListener('submit', async event => {
     const next = await api('/api/status');
     $('token').value = ''; $('login').hidden = true; $('dashboard').hidden = false; $('logout').hidden = false;
     render(next); lock(false); notice('');
-    clearInterval(polling); polling = setInterval(refresh, 5000);
+    clearInterval(polling); polling = setInterval(refresh, 5000); startTelemetry();
   } catch (error) {
     token = ''; $('login-error').textContent = error.message; $('login-error').hidden = false;
   } finally { $('login-button').disabled = false; }

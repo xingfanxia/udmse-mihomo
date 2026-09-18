@@ -76,10 +76,10 @@ class InstallTest(unittest.TestCase):
         (self.source / "install.sh").write_text(script)
         for name in ("config.yaml", "routing.env.example", "install-config.py", "uninstall.sh"):
             shutil.copyfile(REPO / name, self.source / name)
-        for name in ("mihomo-routing.sh", "20-mihomo.sh", "mihomo-watchdog.sh", "mihomo.service", "mihomo-watchdog.service", "mihomo-watchdog.timer", "mihomo-admin.service", "admin-server.py"):
+        for name in ("mihomo-routing.sh", "20-mihomo.sh", "mihomo-watchdog.sh", "mihomo.service", "mihomo-watchdog.service", "mihomo-watchdog.timer", "mihomo-admin.service", "admin-server.py", "telemetry.py"):
             (self.source / name).write_text("# fixture\n")
         (self.source / "admin").mkdir()
-        for name in ("index.html", "app.js", "style.css", "favicon.svg"):
+        for name in ("index.html", "app.js", "style.css", "favicon.svg", "telemetry.js"):
             (self.source / "admin" / name).write_text("fixture")
         self.mock("sha256sum", 'exec "$CHECKSUM_COMMAND" "$@"')
         self.mock("id", "echo 0")

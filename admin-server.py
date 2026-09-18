@@ -301,6 +301,7 @@ class Controller:
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"),
           "/index.html": ("index.html", "text/html; charset=utf-8"),
           "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+          "/telemetry.js": ("telemetry.js", "text/javascript; charset=utf-8"),
           "/style.css": ("style.css", "text/css; charset=utf-8"),
           "/favicon.svg": ("favicon.svg", "image/svg+xml")}
 
@@ -347,6 +348,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise AdminError(401, "Enter the administrator token.")
         if self.command == "GET" and self.path == "/api/status":
             return self.reply(200, self.server.controller.status())
+        if self.command == "GET" and self.path == "/api/telemetry":
+            data = self.server.telemetry.snapshot() if self.server.telemetry is not None else unavailable_telemetry()
+            return self.reply(200, data)
         if self.command == "POST" and self.path == "/api/control":
             if len(origins) != 1:
                 raise AdminError(403, "Requests must come from this page.")
@@ -368,7 +372,7 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, UnicodeError):
                 raise AdminError(400, "Invalid JSON request.") from None
             return self.reply(200, self.server.controller.control(body))
-        if self.path in {"/api/status", "/api/control"} or self.command not in {"GET", "POST"}:
+        if self.path in {"/api/status", "/api/control", "/api/telemetry"} or self.command not in {"GET", "POST"}:
             raise AdminError(405, "This method is not available.")
         if self.command == "GET" and self.path in ASSETS:
             filename, mime = ASSETS[self.path]
@@ -401,12 +405,34 @@ class Handler(BaseHTTPRequestHandler):
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_OPTIONS = do_HEAD = handle_request
 
 
-def make_server(controller, token, asset_dir, port=9088):
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+def unavailable_telemetry():
+    # A factory-created test server has no collector unless one is injected.
+    return {"state": "unavailable", "sampled_at_ms": None, "age_seconds": None, "stale": True,
+            "interval_seconds": 2, "window_seconds": 300, "metric_scope": "mihomo",
+            "upload_bytes_per_second": None, "download_bytes_per_second": None,
+            "upload_total_bytes": None, "download_total_bytes": None, "connections": None,
+            "cpu_percent": None, "memory_bytes": None, "uptime_seconds": None,
+            "history": [], "message": "Metrics collection is not running."}
+
+
+class AdminHTTPServer(ThreadingHTTPServer):
+    def server_close(self):
+        try:
+            super().server_close()
+        finally:
+            collector = getattr(self, "telemetry", None)
+            stop = getattr(collector, "stop", None)
+            if callable(stop):
+                stop()
+
+
+def make_server(controller, token, asset_dir, port=9088, telemetry=None):
+    server = AdminHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     server.controller = controller
     server.token = token
     server.asset_dir = Path(asset_dir)
+    server.telemetry = telemetry
     return server
 
 
@@ -425,8 +451,17 @@ def main():
             controller.apply_mode(args.apply_mode)
             return 0
         token = load_token(args.root / "admin-token")
-        server = make_server(controller, token, args.root / "admin", args.port)
+        # Load the sibling module only for the server. Bootstrap --apply-mode
+        # remains independent and never creates a background sampler.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("mihomo_telemetry", Path(__file__).with_name("telemetry.py"))
+        metrics = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(metrics)
+        collector = metrics.Collector(metrics.LinuxProcessSource(), metrics.ConnectionsSource(
+            lambda: scalar((args.root / "config.yaml").read_text(), "secret")))
+        server = make_server(controller, token, args.root / "admin", args.port, telemetry=collector)
         try:
+            collector.start()
             server.serve_forever()
         finally:
             server.server_close()

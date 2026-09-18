@@ -8,6 +8,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
+  <script src="/telemetry.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -48,6 +49,30 @@
           <div class="route-destinations"><div><span>国内网站</span><b id="route-china">直连</b></div><div><span>海外网站</span><b id="route-overseas">直连</b></div></div>
         </div>
         <div class="session-row"><div class="session-text"><span id="session-label">下次启用时自动恢复直连</span><strong id="remaining" hidden></strong></div><label class="duration-label" for="duration">试用时长 <select id="duration"><option value="15">15 分钟</option><option value="60" selected>1 小时</option><option value="240">4 小时</option></select></label></div>
+      </section>
+      <section class="telemetry-panel" aria-labelledby="telemetry-title">
+        <div class="telemetry-heading"><div><h2 id="telemetry-title">实时监测</h2><p>代理服务处理的流量</p></div><span id="telemetry-state" class="telemetry-state">等待采样</span></div>
+        <div class="metric-strip">
+          <div class="metric download"><span>↓ 下载速率</span><strong id="metric-down">—</strong></div>
+          <div class="metric upload"><span>↑ 上传速率</span><strong id="metric-up">—</strong></div>
+          <div class="metric"><span>当前连接</span><strong id="metric-connections">—</strong></div>
+          <div class="metric"><span>代理 CPU</span><strong id="metric-cpu">—</strong></div>
+          <div class="metric"><span>进程内存</span><strong id="metric-memory">—</strong></div>
+        </div>
+        <div class="chart-heading"><span>最近 5 分钟</span><span class="chart-legend"><i class="legend-down"></i>下载<i class="legend-up"></i>上传</span></div>
+        <div class="traffic-chart" id="traffic-chart">
+          <div class="chart-scale" aria-hidden="true"><span id="chart-max">—</span><span id="chart-middle">—</span><span>0</span></div>
+          <svg id="traffic-svg" viewBox="0 0 900 140" preserveAspectRatio="none" role="img" aria-label="最近五分钟的上传和下载速率曲线">
+            <line class="grid-line" x1="0" x2="900" y1="1" y2="1"></line><line class="grid-line" x1="0" x2="900" y1="70" y2="70"></line><line class="grid-line" x1="0" x2="900" y1="139" y2="139"></line>
+            <path id="chart-download" class="download-line" d=""></path><path id="chart-upload" class="upload-line" d=""></path>
+            <line id="chart-cursor" class="chart-cursor" x1="0" x2="0" y1="0" y2="140" visibility="hidden"></line>
+          </svg>
+          <p id="chart-empty" class="chart-empty">启用代理后开始记录流量</p>
+          <div class="chart-times" aria-hidden="true"><span>5 分钟前</span><span>现在</span></div>
+        </div>
+        <div id="chart-inspect" class="chart-inspect">指向曲线查看当时速率</div>
+        <div class="telemetry-totals"><span>本次累计 <b id="total-down">↓ —</b><b id="total-up">↑ —</b></span><span>运行时间 <b id="metric-uptime">—</b></span></div>
+        <p id="telemetry-note" class="telemetry-note">每 2 秒采样。含服务处理的直连和后台探测，不代表全家宽带用量。CPU 100% 表示一个核心。</p>
       </section>
       <section class="details" aria-label="当前接管范围">
         <div class="scope-detail"><span class="detail-label">接管范围</span><h2 id="scope-title">读取中</h2><p id="scope-description">—</p></div>

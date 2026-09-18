@@ -183,7 +183,7 @@ class HTTPTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.assets = Path(self.temp.name)
-        for name in ("index.html", "app.js", "style.css"):
+        for name in ("index.html", "app.js", "telemetry.js", "style.css"):
             (self.assets / name).write_text("fixture")
         self.controller = mock.Mock()
         self.controller.status.return_value = {"enabled": False, "state": "direct"}
@@ -264,6 +264,33 @@ class HTTPTest(unittest.TestCase):
         self.assertEqual(code, 502)
         self.assertNotIn(ENGINE_SECRET.encode(), raw)
 
+    def test_telemetry_requires_auth_and_only_get(self):
+        telemetry = mock.Mock()
+        telemetry.snapshot.return_value = {"state": "running", "connections": 3, "history": []}
+        self.server.telemetry = telemetry
+        self.assertEqual(self.request(path="/api/telemetry", headers={"Authorization": None})[0], 401)
+        telemetry.snapshot.assert_not_called()
+        code, _, raw = self.request(path="/api/telemetry")
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(raw), telemetry.snapshot.return_value)
+        self.assertEqual(self.request("POST", "/api/telemetry", b"{}")[0], 405)
+        telemetry.snapshot.assert_called_once()
+        self.controller.status.assert_not_called()
+
+    def test_telemetry_default_is_explicitly_unavailable(self):
+        code, _, raw = self.request(path="/api/telemetry")
+        current = json.loads(raw)
+        self.assertEqual(code, 200)
+        self.assertEqual(current["state"], "unavailable")
+        self.assertIsNone(current["upload_bytes_per_second"])
+        self.assertTrue(current["stale"])
+
+    def test_server_close_stops_injected_collector(self):
+        telemetry = mock.Mock()
+        self.server.telemetry = telemetry
+        self.server.server_close()
+        telemetry.stop.assert_called_once()
+
     def test_unknown_method_still_requires_api_auth(self):
         self.assertEqual(self.request("UNSUPPORTED", headers={"Authorization": None})[0], 401)
         self.assertEqual(self.request("UNSUPPORTED")[0], 405)
@@ -275,6 +302,7 @@ class HTTPTest(unittest.TestCase):
         self.assertIn("script-src 'self'", headers["Content-Security-Policy"])
         self.assertNotIn("unsafe-inline", headers["Content-Security-Policy"])
         self.assertNotIn("Access-Control-Allow-Origin", headers)
+        self.assertEqual(self.request(path="/telemetry.js")[0], 200)
         for path in ("/../config.yaml", "/%2e%2e/config.yaml", "/admin-token", "/config.yaml", "/app.js?token=private"):
             self.assertEqual(self.request(path=path)[0], 404)
         (self.assets / "favicon.svg").symlink_to(self.assets / "index.html")
