@@ -89,3 +89,30 @@ response cannot produce a false high-speed spike on the next sample. Slow reads,
 process restarts, counter resets and gaps discard the rate baseline until two
 fresh samples are available. No traffic history is written to a database or
 exported to an external monitoring service.
+
+## Old-console cleanup before replacement — 2026-09-18
+
+AX confirmed this was still the old UDM SE and requested cleanup before powering
+it down for replacement and eventual resale. The full System Config Backup,
+Network-only backup and private custom-service archive were verified locally;
+the explicitly unwanted InnerSpace exclusion was accepted. A fresh archive also
+captured the retired pilot and source staging before deletion.
+
+The owned installer marker, uninstall-script checksum and installed systemd unit
+references were checked. The supported uninstaller removed the active fork;
+the known retired pilot, source/telemetry staging and runtime state were then
+removed. The old Mac SSH forward was closed. Local credential-vault backups
+were retained for restoring the new console.
+
+Post-cleanup verification confirmed native IPv4/IPv6 firewall rules, policy
+routes and DNS configuration matched the immediate pre-cleanup baseline.
+Custom listener ports, unit definitions, packet hooks and owned data paths were
+absent. UniFi Network and the console service remained active; ordinary DNS and
+internet access worked.
+
+**Current migration boundary:** the old console's native UniFi configuration is
+still intact. This operation did not shut down or factory-reset the console.
+The new console has not yet been restored. Once the new system is verified,
+the old console still needs its final factory reset and account-association
+check before resale. This is scoped application cleanup, not a claim of
+forensic secure erasure of the device.
