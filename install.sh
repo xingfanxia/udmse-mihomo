@@ -9,7 +9,7 @@ VERSION=v1.19.31
 SHA256=9e0f11afbf38426b8bd88fdc594678f8161c57eccb4e1b77acb12b493904f1d4
 OWNER=udmse-mihomo-v2
 UNITS=(mihomo.service mihomo-watchdog.service mihomo-watchdog.timer mihomo-admin.service)
-FILES=(telemetry.py admin/telemetry.js admin-server.py admin/index.html admin/app.js admin/style.css admin/favicon.svg config.yaml routing.env.example install-config.py mihomo-routing.sh 20-mihomo.sh mihomo-watchdog.sh uninstall.sh "${UNITS[@]}")
+FILES=(telemetry.py admin/theme.js admin/telemetry.js admin-server.py admin/index.html admin/app.js admin/style.css admin/favicon.svg config.yaml routing.env.example install-config.py mihomo-routing.sh 20-mihomo.sh mihomo-watchdog.sh uninstall.sh "${UNITS[@]}")
 SUBSCRIPTION_FILE=''
 ROUTING_FILE=''
 fail() { printf '%s\n' "$*" >&2; exit 1; }

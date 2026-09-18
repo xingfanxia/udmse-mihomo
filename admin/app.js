@@ -87,18 +87,37 @@ async function control(enabled, mode) {
   } catch (error) { notice(error.message, true); }
   finally { lock(false); await refresh(); }
 }
+async function connectDashboard(credential, local = false) {
+  token = credential;
+  const next = await api('/api/status');
+  $('token').value = ''; $('login').hidden = true; $('dashboard').hidden = false;
+  $('logout').hidden = local;
+  if (local) document.querySelector('.connection').lastChild.textContent = '此 Mac 已自动连接';
+  render(next); lock(false); notice('');
+  clearInterval(polling); polling = setInterval(refresh, 5000); startTelemetry();
+}
 $('login-form').addEventListener('submit', async event => {
   event.preventDefault(); $('login-error').hidden = true;
-  token = $('token').value.trim(); $('login-button').disabled = true;
+  $('login-button').disabled = true;
   try {
-    const next = await api('/api/status');
-    $('token').value = ''; $('login').hidden = true; $('dashboard').hidden = false; $('logout').hidden = false;
-    render(next); lock(false); notice('');
-    clearInterval(polling); polling = setInterval(refresh, 5000); startTelemetry();
+    await connectDashboard($('token').value.trim());
   } catch (error) {
     token = ''; $('login-error').textContent = error.message; $('login-error').hidden = false;
   } finally { $('login-button').disabled = false; }
 });
+async function connectLocalMac() {
+  $('login-button').disabled = true;
+  try {
+    const response = await fetch('/local-session', {cache: 'no-store', credentials: 'omit', redirect: 'error'});
+    if (!response.ok) return;
+    const session = await response.json();
+    if (session.auth !== 'local' || typeof session.token !== 'string') return;
+    await connectDashboard(session.token, true);
+  } catch {
+    token = ''; $('login-error').textContent = '本机连接暂时不可用，请刷新重试。'; $('login-error').hidden = false;
+  } finally { $('login-button').disabled = false; }
+}
+window.addEventListener('DOMContentLoaded', connectLocalMac);
 $('power-switch').addEventListener('click', () => control(!state.enabled, lastMode));
 modeButtons.forEach(button => button.addEventListener('click', () => control(button.dataset.mode !== 'direct', button.dataset.mode === 'direct' ? lastMode : button.dataset.mode)));
 $('logout').addEventListener('click', logout);

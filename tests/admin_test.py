@@ -178,6 +178,16 @@ class ControllerTest(unittest.TestCase):
         with self.assertRaises(OSError):
             admin.load_token(link)
 
+    def test_explicit_password_with_existing_file_protections(self):
+        path = self.root / "admin-token"
+        path.write_text("example-pass-42")
+        path.chmod(0o600)
+        self.assertEqual(admin.load_token(path), "example-pass-42")
+        for invalid in ["short", "password with spaces", "x" * 129]:
+            path.write_text(invalid)
+            with self.assertRaises(ValueError):
+                admin.load_token(path)
+
 
 class HTTPTest(unittest.TestCase):
     def setUp(self):

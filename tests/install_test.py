@@ -79,7 +79,7 @@ class InstallTest(unittest.TestCase):
         for name in ("mihomo-routing.sh", "20-mihomo.sh", "mihomo-watchdog.sh", "mihomo.service", "mihomo-watchdog.service", "mihomo-watchdog.timer", "mihomo-admin.service", "admin-server.py", "telemetry.py"):
             (self.source / name).write_text("# fixture\n")
         (self.source / "admin").mkdir()
-        for name in ("index.html", "app.js", "style.css", "favicon.svg", "telemetry.js"):
+        for name in ("index.html", "app.js", "style.css", "favicon.svg", "telemetry.js", "theme.js"):
             (self.source / "admin" / name).write_text("fixture")
         self.mock("sha256sum", 'exec "$CHECKSUM_COMMAND" "$@"')
         self.mock("id", "echo 0")

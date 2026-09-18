@@ -65,7 +65,7 @@ def load_token(path):
         if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.geteuid():
             raise ValueError("Admin token must be an owner-only regular file")
         token = stream.read(130).strip()
-    if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", token):
+    if not re.fullmatch(r"[!-~]{10,128}", token):
         raise ValueError("Invalid admin token")
     return token
 
@@ -298,7 +298,8 @@ class Controller:
             self.control_lock.release()
 
 
-ASSETS = {"/": ("index.html", "text/html; charset=utf-8"),
+ASSETS = {"/theme.js": ("theme.js", "text/javascript; charset=utf-8"),
+          "/": ("index.html", "text/html; charset=utf-8"),
           "/index.html": ("index.html", "text/html; charset=utf-8"),
           "/app.js": ("app.js", "text/javascript; charset=utf-8"),
           "/telemetry.js": ("telemetry.js", "text/javascript; charset=utf-8"),

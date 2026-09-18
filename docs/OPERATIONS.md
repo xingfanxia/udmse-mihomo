@@ -158,3 +158,26 @@ through an owner-only SSH askpass helper; no password is stored in the plist.
 Both the dashboard HTML and authenticated status API returned HTTP 200 after
 recovery. This manages only the Mac tunnel; it does not enable UDM service boot
 persistence or change proxy routing scope.
+
+
+### Mac automatic login and theme — 2026-09-18
+
+The operator selected automatic login on this Mac and explicitly chose a manual
+administrator password. The UDM credential was updated privately; its authenticated
+loopback API and separate engine secret remain in place. The Mac SSH LaunchAgent
+now forwards local port 9089 to UDM port 9088. A second user LaunchAgent,
+`ai.ax.udm-mihomo-dashboard-bridge`, runs the repository's `local-dashboard.py`
+on local port 9088. Both restart through launchd. The bridge reads the vault
+credential and exchanges a per-process local bearer with the browser; it does
+not disclose the UDM password. Other local users/processes are within the trusted
+Mac boundary. Strict Host, Origin, fetch-metadata, route and request checks reject
+cross-site operation and arbitrary forwarding.
+
+The dashboard automatically connects on this Mac. Direct UDM access retains
+manual login. Theme defaults to the operating system, with an accessible
+light/dark toggle that remembers only the theme in browser storage. The bridge
+and UDM versions passed focused authentication/boundary tests, installer checks,
+and real-browser automatic/manual login and control tests. Live acceptance
+verified automatic login, the new manual password, dark-theme persistence and
+rejection of unauthenticated/cross-origin requests. Routing remained direct.
+Private credential and prior deployment snapshots were retained for rollback.

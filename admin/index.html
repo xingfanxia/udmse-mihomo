@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>UDM 分流控制</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
   <script src="/telemetry.js" defer></script>
@@ -14,6 +15,7 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="UDM 分流控制首页"><span class="device-icon" aria-hidden="true"><i></i><b></b><b></b><b></b><b></b></span><span>UDM <strong>分流控制</strong></span></a>
     <div class="connection"><span class="connection-dot"></span>本地安全连接</div>
+    <button id="theme-toggle" class="quiet theme-toggle" type="button" aria-label="深色模式" aria-pressed="false"><span class="theme-icon" aria-hidden="true">◐</span><span>深色</span></button>
     <button id="logout" class="quiet" type="button" hidden>退出</button>
   </header>
   <main>
@@ -23,11 +25,11 @@
       <p>管理 UDM 上的代理开关和分流模式。<br>连接你的控制面板，查看当前网络状态。</p>
       <form id="login-form">
         <label for="token">管理口令</label>
-        <input id="token" name="token" type="password" autocomplete="off" spellcheck="false" required placeholder="输入安装时生成的管理口令">
+        <input id="token" name="token" type="password" autocomplete="current-password" spellcheck="false" required placeholder="输入管理密码">
         <button id="login-button" class="primary" type="submit">连接控制面板</button>
         <p id="login-error" class="error" role="alert" hidden></p>
       </form>
-      <p class="privacy-note">口令只保留在当前页面，刷新或退出后需要重新输入。</p>
+      <p class="privacy-note">这台 Mac 通过安全连接自动登录。手动输入的密码只保留在当前页面。</p>
     </section>
     <div id="dashboard" hidden>
       <div class="heading-row"><div><p class="subtitle">你的网络，你来决定。</p><h1>流量分流</h1></div><div id="state-badge" class="badge">正在读取状态</div></div>

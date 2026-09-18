@@ -34,7 +34,7 @@ try:
   browser=p.chromium.launch(headless=True,channel='chrome')
   page=browser.new_page(viewport={'width':1280,'height':1040},device_scale_factor=1)
   errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-  page.goto(url);page.wait_for_load_state('networkidle')
+  page.goto(url);expect(page.locator('#login-button')).to_be_enabled()
   page.get_by_label('管理口令',exact=True).fill('wrong-token');page.get_by_role('button',name='连接控制面板').click();expect(page.get_by_role('alert')).to_contain_text('口令')
   page.get_by_label('管理口令',exact=True).fill(TOKEN);page.get_by_role('button',name='连接控制面板').click();expect(page.get_by_role('switch',name='代理总开关')).to_have_attribute('aria-checked','false')
   page.get_by_role('switch',name='代理总开关').click();expect(page.get_by_role('switch')).to_have_attribute('aria-checked','true');expect(page.locator('#route-overseas')).to_have_text('代理');expect(page.locator('#route-china')).to_have_text('直连')
