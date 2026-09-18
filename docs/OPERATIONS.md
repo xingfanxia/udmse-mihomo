@@ -145,3 +145,16 @@ mode remembered for the next trial. Scope remains **only the configured Mac**;
 neither the engine nor administrator was enabled for reboot persistence. UniFi
 Network, the console service and the loopback administrator were active at
 acceptance. The original console remains powered off pending its final reset.
+
+
+### Mac dashboard tunnel recovery
+
+The original background SSH forward later exited while the UDM administrator
+remained healthy. On 2026-09-18 it was replaced by the operator Mac's user
+LaunchAgent `ai.ax.udm-mihomo-dashboard`, listening only on `127.0.0.1:9088`.
+It starts at login and launchd reconnects it after exit, with a 30-second retry
+throttle and SSH keepalives. Authentication reads the existing credential vault
+through an owner-only SSH askpass helper; no password is stored in the plist.
+Both the dashboard HTML and authenticated status API returned HTTP 200 after
+recovery. This manages only the Mac tunnel; it does not enable UDM service boot
+persistence or change proxy routing scope.
