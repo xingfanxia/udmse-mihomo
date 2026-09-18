@@ -1,6 +1,6 @@
 # Deployment and admin-page acceptance
 
-## Verified deployment — 2026-09-18
+## Original-console deployment — 2026-09-18
 
 The UDM SE was installed from commit `529b3a7` on UniFi OS 5.1.33. The
 installation is `/data/mihomo`; source staging is `/data/mihomo-source-529b3a7`.
@@ -110,9 +110,38 @@ Custom listener ports, unit definitions, packet hooks and owned data paths were
 absent. UniFi Network and the console service remained active; ordinary DNS and
 internet access worked.
 
-**Current migration boundary:** the old console's native UniFi configuration is
-still intact. This operation did not shut down or factory-reset the console.
-The new console has not yet been restored. Once the new system is verified,
-the old console still needs its final factory reset and account-association
-check before resale. This is scoped application cleanup, not a claim of
+**Old-console boundary:** custom cleanup did not factory-reset the console.
+AX subsequently powered it off and moved the connections to the replacement.
+Its native UniFi configuration still needs the final factory reset and
+account-association check before resale. This is scoped application cleanup, not a claim of
 forensic secure erasure of the device.
+
+
+## Replacement-console acceptance — 2026-09-18
+
+AX restored the System Config Backup onto the replacement UDM SE, running
+UniFi OS 5.1.33. A changed console MAC and SSH host key confirmed the hardware
+change; the new key was pinned after the physical cutover was confirmed. AX
+confirmed both switches, all three APs and the power strip were online. The
+three original LAN networks, native DNS and internet access were present.
+
+The private custom-service archive passed its recorded SHA-256 check. Active
+scripts, administrator assets and unit definitions matched this repository.
+Only the owned installation was restored: retired pilot files, source staging,
+old runtime state and native firewall files were excluded. Mihomo's configuration
+check passed before the administrator was started. The existing administrator
+token, subscription, device scope and selection cache were preserved.
+
+Live acceptance on the operator Mac verified smart routing, global mode, direct
+mode and DNS after stopping. The original China IP-query endpoint returned HTTP
+500 even with the proxy stopped; a second endpoint successfully verified the
+same routing behavior. A controlled transfer populated live rates, connection
+counts, process CPU/RSS and the browser history chart. Stopping returned live
+metrics to null. The final check found no custom packet hooks or policy route.
+
+The administrator is available through the Mac's loopback SSH forward at
+<http://127.0.0.1:9088>. The final proxy state is **direct/stopped**, with smart
+mode remembered for the next trial. Scope remains **only the configured Mac**;
+neither the engine nor administrator was enabled for reboot persistence. UniFi
+Network, the console service and the loopback administrator were active at
+acceptance. The original console remains powered off pending its final reset.
