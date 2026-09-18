@@ -1,13 +1,19 @@
 [Unit]
-Description=mihomo Daemon
-After=network.target
+Description=Mihomo scoped proxy
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
+UMask=0077
+ExecStartPre=/data/mihomo/mihomo-routing.sh guard
+ExecStartPre=/data/mihomo/mihomo -t -d /data/mihomo
 ExecStart=/data/mihomo/mihomo -d /data/mihomo
-Restart=on-failure
-RestartSec=5
-LimitNOFILE=1048576
+ExecStopPost=/data/mihomo/mihomo-routing.sh cleanup
+Restart=no
+MemoryMax=512M
+CPUQuota=100%
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target

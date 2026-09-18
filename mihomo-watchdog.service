@@ -1,7 +1,9 @@
 [Unit]
-Description=mihomo watchdog timer
+Description=Check requested Mihomo trial and scoped rules
 After=mihomo.service
 
 [Service]
 Type=oneshot
+UMask=0077
 ExecStart=/data/mihomo/mihomo-watchdog.sh
+TimeoutStartSec=60

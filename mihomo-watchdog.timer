@@ -1,9 +1,10 @@
 [Unit]
-Description=Run mihomo watchdog every 2 minutes
+Description=Check requested Mihomo trial every 30 seconds
 
 [Timer]
-OnBootSec=60
-OnUnitActiveSec=120
+OnActiveSec=30
+OnUnitActiveSec=30
+AccuracySec=2
 
 [Install]
 WantedBy=timers.target

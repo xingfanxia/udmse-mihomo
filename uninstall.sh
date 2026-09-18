@@ -1,69 +1,83 @@
-#!/bin/bash
-# ============================================================
-#  UDM-SE mihomo 卸载脚本
-#  用法: bash <(curl -sL https://raw.githubusercontent.com/silicondawn/udmse-mihomo/main/uninstall.sh)
-# ============================================================
-
-set -e
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-MIHOMO_DIR="/data/mihomo"
-
-echo -e "${RED}⚠️  即将卸载 mihomo 透明代理${NC}"
-echo -e "这将停止服务、清除 iptables 规则、删除所有文件"
-echo -en "${YELLOW}确认卸载？(y/N): ${NC}"
-read -r REPLY
-[ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ] && { echo "已取消"; exit 0; }
-
-echo ""
-
-# 停止服务
-echo -e "${GREEN}[1/5]${NC} 停止服务..."
-systemctl stop mihomo-watchdog.timer 2>/dev/null || true
-systemctl stop mihomo 2>/dev/null || true
-systemctl disable mihomo-watchdog.timer 2>/dev/null || true
-systemctl disable mihomo 2>/dev/null || true
-
-# 清除 systemd
-echo -e "${GREEN}[2/5]${NC} 清除 systemd 服务..."
-rm -f /etc/systemd/system/mihomo.service
-rm -f /etc/systemd/system/mihomo-watchdog.service
-rm -f /etc/systemd/system/mihomo-watchdog.timer
-systemctl daemon-reload
-
-# 清除 iptables
-echo -e "${GREEN}[3/5]${NC} 清除 iptables 规则..."
-iptables -t mangle -D PREROUTING -j MIHOMO_PREROUTING 2>/dev/null || true
-iptables -t mangle -F MIHOMO_PREROUTING 2>/dev/null || true
-iptables -t mangle -X MIHOMO_PREROUTING 2>/dev/null || true
-ip rule del fwmark 1 table 100 2>/dev/null || true
-ip route del local 0.0.0.0/0 dev lo table 100 2>/dev/null || true
-
-# 删除 on_boot
-echo -e "${GREEN}[4/5]${NC} 删除 on_boot 脚本..."
-rm -f /data/on_boot.d/20-mihomo.sh
-
-# 删除文件
-echo -e "${GREEN}[5/5]${NC} 删除 mihomo 文件..."
-echo -en "${YELLOW}是否保留配置文件 config.yaml？(Y/n): ${NC}"
-read -r KEEP
-if [ "$KEEP" = "n" ] || [ "$KEEP" = "N" ]; then
-    rm -rf "${MIHOMO_DIR}"
-    echo "已删除全部文件"
-else
-    # 只保留 config.yaml
-    TMPCONF=$(mktemp)
-    cp "${MIHOMO_DIR}/config.yaml" "$TMPCONF" 2>/dev/null || true
-    rm -rf "${MIHOMO_DIR}"
-    mkdir -p "${MIHOMO_DIR}"
-    mv "$TMPCONF" "${MIHOMO_DIR}/config.yaml" 2>/dev/null || true
-    echo "已保留 ${MIHOMO_DIR}/config.yaml"
+#!/usr/bin/env bash
+# Only remove installations created by this installer; keep private data unless
+# --purge was explicitly requested. Never alter the router's own DNS/firewall.
+set -euo pipefail
+umask 077
+MIHOMO_DIR=/data/mihomo
+UNIT_DIR=/etc/systemd/system
+STATE=/run/mihomo-routing
+OWNER=udmse-mihomo-v2
+UNITS=(mihomo.service mihomo-watchdog.service mihomo-watchdog.timer)
+PURGE=0
+fail() { printf '%s\n' "$*" >&2; exit 1; }
+case "${1:-}" in
+    '') ;;
+    --purge) PURGE=1; shift ;;
+    -h|--help) echo 'Usage: sudo bash uninstall.sh [--purge]'; exit 0 ;;
+    *) fail 'Only --purge is supported.' ;;
+esac
+(($# == 0)) || fail 'Unexpected arguments.'
+[[ $(id -u) == 0 ]] || fail 'Run as root.'
+for command in systemctl flock cmp stat; do command -v "$command" >/dev/null || fail "Missing command: $command"; done
+exec 8>/run/lock/udmse-mihomo-install.lock
+flock -n 8 || fail 'Another install/uninstall operation is running.'
+[[ -d $MIHOMO_DIR && ! -L $MIHOMO_DIR && $(stat -c %u "$MIHOMO_DIR") == 0 ]] || fail 'Installation root is absent, symlinked, or not root-owned; no changes made.'
+[[ -f $MIHOMO_DIR/.managed-by && ! -L $MIHOMO_DIR/.managed-by && $(cat "$MIHOMO_DIR/.managed-by") == "$OWNER" ]] || fail 'Unsupported installation ownership; no changes made.'
+# Validate every artifact before stopping anything. User modifications require a
+# deliberate manual resolution; they are never overwritten or guessed at.
+for unit in "${UNITS[@]}"; do
+    [[ -f $MIHOMO_DIR/$unit && ! -L $MIHOMO_DIR/$unit ]] || fail "Missing installed ownership reference: $unit"
+    if [[ -e $UNIT_DIR/$unit || -L $UNIT_DIR/$unit ]]; then
+        if [[ ! -f $UNIT_DIR/$unit || -L $UNIT_DIR/$unit ]] || ! cmp -s "$MIHOMO_DIR/$unit" "$UNIT_DIR/$unit"; then
+            fail "Unit ownership mismatch: $unit"
+        fi
+    fi
+    for directory in "$UNIT_DIR" /run/systemd/system /lib/systemd/system /usr/lib/systemd/system; do
+        [[ ! -e $directory/$unit.d ]] || fail "Unit overrides found: $unit"
+        if [[ $directory != "$UNIT_DIR" ]]; then
+            [[ ! -e $directory/$unit && ! -L $directory/$unit ]] || fail "Another unit definition exists: $unit"
+        fi
+    done
+done
+BOOT=/data/on_boot.d/20-mihomo.sh
+if [[ -e $BOOT || -L $BOOT ]]; then
+    if [[ ! -f $BOOT || -L $BOOT ]] || ! cmp -s "$MIHOMO_DIR/20-mihomo.sh" "$BOOT"; then
+        fail 'Boot hook ownership mismatch.'
+    fi
 fi
-
-echo ""
-echo -e "${GREEN}✅ mihomo 已完全卸载${NC}"
-echo -e "${YELLOW}提示: 请在 UniFi 控制面板将 DNS 设置改回默认${NC}"
+[[ -x $MIHOMO_DIR/mihomo-routing.sh && ! -L $MIHOMO_DIR/mihomo-routing.sh ]] || fail 'Owned routing cleanup script is missing; no changes made.'
+# Prevent recovery/restart races, then detach traffic BEFORE stopping listeners.
+rm -f -- "$STATE/wanted"
+stop_if_present() {
+    if [[ -e $UNIT_DIR/$1 ]] || systemctl is-active --quiet "$1"; then
+        systemctl stop "$1"
+    fi
+}
+stop_if_present mihomo-watchdog.timer
+stop_if_present mihomo-watchdog.service
+# The bootstrap rollback is transient and may already have expired.
+if systemctl is-active --quiet mihomo-rollback.timer; then systemctl stop mihomo-rollback.timer; fi
+if systemctl is-active --quiet mihomo-rollback.service; then systemctl stop mihomo-rollback.service; fi
+"$MIHOMO_DIR/mihomo-routing.sh" detach
+stop_if_present mihomo.service
+"$MIHOMO_DIR/mihomo-routing.sh" cleanup
+for unit in mihomo.service mihomo-watchdog.timer; do
+    [[ ! -e $UNIT_DIR/$unit ]] || systemctl disable "$unit"
+done
+for unit in "${UNITS[@]}"; do rm -f -- "$UNIT_DIR/$unit"; done
+[[ ! -e $BOOT ]] || rm -- "$BOOT"
+systemctl daemon-reload
+if ((PURGE)); then
+    # Refuse mounted content; --purge is only for files owned by this install.
+    command -v findmnt >/dev/null || fail 'findmnt is required for --purge; private files were preserved.'
+    if findmnt -rn -o TARGET | awk -v root="$MIHOMO_DIR" '$0 == root || index($0, root "/") == 1 {found=1} END {exit !found}'; then
+        fail 'Mounted content exists under /data/mihomo; private files were preserved.'
+    fi
+    rm -rf --one-file-system -- "$MIHOMO_DIR"
+    echo 'Routing and services removed; /data/mihomo purged.'
+else
+    # Retain runtime files too: the cleanup helper and exact unit references
+    # make later inspection or an explicit --purge possible without guessing.
+    echo 'Routing and services removed. Private configuration and providers remain in /data/mihomo (mode 0700).'
+    echo 'Use uninstall.sh --purge only when you intend to delete all retained private data.'
+fi

@@ -1,58 +1,55 @@
-# mihomo 配置 - UDM-SE 透明代理
-# 文档: https://wiki.metacubex.one/
-
-# 基本设置
+# Private template. install.sh safely renders the subscription and API secret.
+# The routing guard must be in place before the service starts.
 mixed-port: 7890
 tproxy-port: 7893
-allow-lan: true
-bind-address: "*"
+allow-lan: false
+bind-address: 127.0.0.1
 mode: rule
-log-level: info
+log-level: warning
 ipv6: false
-external-controller: 0.0.0.0:9090
-external-ui: /data/mihomo/ui
+external-controller: 127.0.0.1:9090
+secret: "GENERATED_API_SECRET_HERE"
 
-# DNS 设置
+# Keep the router's existing port 53 resolver untouched. Runtime redirects only
+# the explicitly selected IPv4 sources and blocks other access to port 1053.
 dns:
   enable: true
-  listen: 0.0.0.0:53
+  listen: "GENERATED_DNS_LISTEN_HERE"
   ipv6: false
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
-  fake-ip-filter:
-    - "*.lan"
-    - "*.local"
-    - "*.hen-ladon.ts.net"
-    - "localhost.ptlogin2.qq.com"
-    - "+.msftconnecttest.com"
-    - "+.msftncsi.com"
+  enhanced-mode: redir-host
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
   nameserver:
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
+    - "https://1.1.1.1/dns-query#PROXY"
   nameserver-policy:
-    # Tailscale 域名走 MagicDNS
-    "+.hen-ladon.ts.net": "100.100.100.100"
-    # 国内域名走国内 DNS
-    "geosite:cn,private":
-      - https://doh.pub/dns-query
-      - https://dns.alidns.com/dns-query
+    "rule-set:cn-domain":
+      - "https://dns.alidns.com/dns-query#DIRECT"
+    "+.localdomain": ["127.0.0.1:53"]
+    "+.lan": ["127.0.0.1:53"]
+  proxy-server-nameserver:
+    - "https://dns.alidns.com/dns-query#DIRECT"
+  direct-nameserver:
+    - "https://dns.alidns.com/dns-query#DIRECT"
+  direct-nameserver-follow-policy: false
 
-# TUN 模式 (备选，如果 TProxy 有问题可以切换)
-# tun:
-#   enable: true
-#   stack: system
-#   dns-hijack:
-#     - any:53
-#   auto-route: true
-#   auto-detect-interface: true
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
 
-# 订阅代理
 proxy-providers:
   my-sub:
     type: http
+    proxy: DIRECT
     url: "YOUR_CLASH_SUBSCRIPTION_URL_HERE"
     interval: 3600
     path: ./providers/my-sub.yaml
@@ -61,68 +58,43 @@ proxy-providers:
       interval: 300
       url: https://www.gstatic.com/generate_204
 
-# 代理组
 proxy-groups:
-  - name: "🚀 节点选择"
+  - name: PROXY
     type: select
-    use:
-      - my-sub
-    proxies:
-      - "♻️ 自动选择"
-      - DIRECT
+    empty-fallback: REJECT
+    use: [my-sub]
 
-  - name: "♻️ 自动选择"
-    type: url-test
-    use:
-      - my-sub
-    url: https://www.gstatic.com/generate_204
-    interval: 300
-    tolerance: 50
+# Only the two China rule sets are needed. No geosite.dat/geoip.dat/MMDB.
+rule-providers:
+  cn-domain:
+    type: http
+    proxy: DIRECT
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs
+    path: ./rules/cn-domain.mrs
+    interval: 86400
+  cn-ip:
+    type: http
+    proxy: DIRECT
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    path: ./rules/cn-ip.mrs
+    interval: 86400
 
-  - name: "🎬 流媒体"
-    type: select
-    use:
-      - my-sub
-    proxies:
-      - "🚀 节点选择"
-
-  - name: "🤖 AI 服务"
-    type: select
-    use:
-      - my-sub
-    proxies:
-      - "🚀 节点选择"
-
-  - name: "🐟 漏网之鱼"
-    type: select
-    proxies:
-      - "🚀 节点选择"
-      - DIRECT
-
-# 分流规则
 rules:
-  # 私有地址直连
-  - IP-CIDR,192.168.0.0/16,DIRECT
-  - IP-CIDR,10.0.0.0/8,DIRECT
-  - IP-CIDR,172.16.0.0/12,DIRECT
-  - IP-CIDR,127.0.0.0/8,DIRECT
-  - IP-CIDR,100.64.0.0/10,DIRECT  # Tailscale CGNAT
-
-  # AI 服务
-  - DOMAIN-SUFFIX,openai.com,🤖 AI 服务
-  - DOMAIN-SUFFIX,anthropic.com,🤖 AI 服务
-  - DOMAIN-SUFFIX,claude.ai,🤖 AI 服务
-  - DOMAIN-SUFFIX,bard.google.com,🤖 AI 服务
-  - DOMAIN-SUFFIX,gemini.google.com,🤖 AI 服务
-
-  # 流媒体
-  - GEOSITE,netflix,🎬 流媒体
-  - GEOSITE,disney,🎬 流媒体
-  - GEOSITE,youtube,🎬 流媒体
-
-  # 国内直连
-  - GEOSITE,cn,DIRECT
-  - GEOIP,CN,DIRECT
-
-  # 兜底
-  - MATCH,🐟 漏网之鱼
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - IP-CIDR,240.0.0.0/4,DIRECT,no-resolve
+  - RULE-SET,cn-domain,DIRECT
+  - RULE-SET,cn-ip,DIRECT
+  - MATCH,PROXY

@@ -8,3 +8,8 @@ mihomo
 ui/
 providers/
 config-test.yaml
+/scratch/
+/routing.env
+/config.local.yaml
+__pycache__/
+*.pyc
