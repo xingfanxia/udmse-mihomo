@@ -63,3 +63,29 @@ Start a configured trial through the admin page, or use:
 All public internet mode changes remain within the configured scope. Native
 IPv6 internet, all-LAN throughput, reboot/firmware persistence and connectivity
 from mainland China have not been accepted by this deployment.
+
+## Live telemetry — 2026-09-18
+
+Admin telemetry files were updated from commit `5526c6f`. Only the administrator
+service was restarted; proxy credentials, route scope, mode and lifecycle units
+were preserved. Previous admin files are in the root-only backup directory
+`/data/mihomo/backups/telemetry-5526c6f`.
+
+The authenticated `/api/telemetry` endpoint uses one background collector and
+five minutes of RAM-only history. Rates are bytes per second; CPU 100% is one
+core; memory is the Mihomo process RSS. These are engine-handled counters,
+including direct connections and background work, not whole-router WAN usage.
+
+Acceptance included 62 regression tests and successful hosted CI, plus desktop
+and mobile browser checks of the graph, missing/stale values and session gaps.
+A live controlled transfer produced six fresh rate samples, positive transfer
+counts and active connections; process memory and CPU were populated. The
+browser displayed the real history. The authenticated responses contained no
+connection addresses, destinations or metadata. After testing, the original
+stopped/direct state was restored and live values became null.
+
+A deterministic delayed-response regression also verified that a slow engine
+response cannot produce a false high-speed spike on the next sample. Slow reads,
+process restarts, counter resets and gaps discard the rate baseline until two
+fresh samples are available. No traffic history is written to a database or
+exported to an external monitoring service.
